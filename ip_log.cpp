@@ -29,6 +29,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include "simple_csv_import_export.h"
 
 std::string get_current_time() {
 
@@ -42,6 +43,49 @@ std::string get_current_time() {
 }
 
 int main() {
+
+// Testing out csv_to_vmss:
+
+std::pair<std::vector<std::map<std::string, std::string>>, 
+std::vector<std::string>> csv_data_and_header = csv_to_vmss(
+"ip_log.csv");
+
+std::vector<std::map<std::string, 
+std::string>> csv_data = csv_data_and_header.first;
+std::vector<std::string> col_names = csv_data_and_header.second;
+
+std::cout << "Length of csv_data: " << csv_data.size() << "\n";
+
+// Retrieving final row:
+std::map<std::string, std::string> final_row = csv_data[csv_data.size() -1];
+
+std::cout << "Final index, public IP address, and local IP address: " 
+<< final_row["Index"] << "; " << final_row["Public_IP_Address"] << "; " << 
+final_row["Local_IP_Address"] << "\n";
+
+// Seeing how the map keys are sorted:
+std::cout << "Map-key sort order:\n";
+for (auto const& [column, 
+column_val] : final_row) {
+std::cout << column << " " << column_val;}
+std::cout << "\n";
+// Comparing this order to that of col_names (which should preserve
+// the original column older within the .csv file:)
+
+std::cout << "Original column order:\n";
+for (int i = 0; i < col_names.size(); i++)
+{std::cout << col_names[i] << " ";}
+std::cout << "\n";
+
+// Testing out an export:
+
+vmss_to_csv("test_ip_log.csv", csv_data, col_names);
+
+
+
+return 0; // Stopping the code here for testing/debugging
+// purposes
+
 
   // Checking whether a CSV log already exists:
   // (If not, we'll initialize it by specifying its header row.)
