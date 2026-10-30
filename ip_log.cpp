@@ -44,49 +44,6 @@ std::string get_current_time() {
 
 int main() {
 
-// Testing out csv_to_vmss:
-
-std::pair<std::vector<std::map<std::string, std::string>>, 
-std::vector<std::string>> csv_data_and_header = csv_to_vmss(
-"ip_log.csv");
-
-std::vector<std::map<std::string, 
-std::string>> csv_data = csv_data_and_header.first;
-std::vector<std::string> col_names = csv_data_and_header.second;
-
-std::cout << "Length of csv_data: " << csv_data.size() << "\n";
-
-// Retrieving final row:
-std::map<std::string, std::string> final_row = csv_data[csv_data.size() -1];
-
-std::cout << "Final index, public IP address, and local IP address: " 
-<< final_row["Index"] << "; " << final_row["Public_IP_Address"] << "; " << 
-final_row["Local_IP_Address"] << "\n";
-
-// Seeing how the map keys are sorted:
-std::cout << "Map-key sort order:\n";
-for (auto const& [column, 
-column_val] : final_row) {
-std::cout << column << " " << column_val;}
-std::cout << "\n";
-// Comparing this order to that of col_names (which should preserve
-// the original column older within the .csv file:)
-
-std::cout << "Original column order:\n";
-for (int i = 0; i < col_names.size(); i++)
-{std::cout << col_names[i] << " ";}
-std::cout << "\n";
-
-// Testing out an export:
-
-vmss_to_csv("test_ip_log.csv", csv_data, col_names);
-
-
-
-return 0; // Stopping the code here for testing/debugging
-// purposes
-
-
   // Checking whether a CSV log already exists:
   // (If not, we'll initialize it by specifying its header row.)
   // The following code is based on:
@@ -101,38 +58,68 @@ return 0; // Stopping the code here for testing/debugging
     // https://en.cppreference.com/cpp/io/basic_ofstream .
     std::ofstream ofs("ip_log.csv", std::ios::out);
     // Writing the CSV file's headers:
-    ofs << "Index,Timestamp,Public_IP_Address,Local_IP_Address\n"; // I could
-                                                                   // check
-                                                                   // whether
-    // the /n here is necessary--but it probably doesn't hurt to include it.
-    ofs.close(); // We'll want to reopen the file shortly under a different
-                 // mode, so closing it here
-    // is probably ideal
-
+    ofs << "Index,Timestamp,Public_IP_Address,Local_IP_Address\n"; 
+    // I could check whether the /n here is necessary--but it 
+    // probably doesn't hurt to include it.
+    ofs.close(); 
   } else {
     std::cout << "The file already exists, so the program won't attempt to "
                  "recreate it.\n";
   }
 
-  // Adding new data after the last row of the file:
 
-  // TO DO: Replace these hardcoded values with code that retrieves the current
-  // values Note: Try using libcurl rather than a shell command to get the IP
-  // address--as this will be good practice. (See
+// Importing existing CSV data:
+
+std::pair<std::vector<std::map<std::string, std::string>>, 
+std::vector<std::string>> csv_data_and_header = csv_to_vmss(
+"ip_log.csv");
+
+std::vector<std::map<std::string, 
+std::string>> csv_data = csv_data_and_header.first;
+std::vector<std::string> col_names = csv_data_and_header.second;
+
+int csv_row_count = csv_data.size();
+
+std::cout << "Length of csv_data: " << csv_row_count << "\n";
+
+// If there aren't any actual data rows, we should skip over any code
+// that requires such rows to be present.
+
+std::map<std::string, std::string> final_row;
+
+if (csv_row_count > 0) 
+
+{
+// Retrieving final row:
+ final_row = csv_data[csv_data.size() -1];
+
+std::cout << "Final index, public IP address, and local IP address: " 
+<< final_row["Index"] << "; " << final_row["Public_IP_Address"] << "; " << 
+final_row["Local_IP_Address"] << "\n";
+
+}
+
+  // Adding new data to the bottom of the CSV file:
+
+  //  Note: Consider updating the code to use libcurl, 
+  // rather than a shell command, to get the IP
+  // address--as this will be a good learning opportunity. (See
   // https://stackoverflow.com/a/389074/13097194 and
   // https://everything.curl.dev/libcurl/cplusplus.html )
   // This will involve linking an external library, though, so you may
-  // want to use CMake--though g++ should work fine here as well. (Do make sure
-  // to mention the library in your own project's license, though.) See
-  // https://stackoverflow.com/questions/6141147/how-do-i-include-a-path-to-libraries-in-g
+  // want to use CMake--though g++ should work fine here as well. 
+  //  See https://stackoverflow.com/questions/6141147/
+  // how-do-i-include-a-path-to-libraries-in-g
+  // (Do make sure to mention the library's license within your own 
+  // license file, though.)
 
+  std::string public_ip_address = "";
   // Using a shell command to retrieve the current external IP address:
   // The following two lines are based on
   // https://en.cppreference.com/cpp/utility/program/system . (The command
   // itself is based on https://stackoverflow.com/a/14594304/13097194 .)
-  std::system("curl ipinfo.io/ip > public_ip.txt");
-  std::string public_ip_address = "";
-  std::ifstream public_ip_ifs = std::ifstream("public_ip.txt");
+  std::system("curl ipinfo.io/ip > ip_data/public_ip.txt");
+  std::ifstream public_ip_ifs = std::ifstream("ip_data/public_ip.txt");
   public_ip_ifs >> public_ip_address;
 
   /* Using another shell command to retrieve the computer's local IP address
@@ -142,37 +129,52 @@ return 0; // Stopping the code here for testing/debugging
   https://stackoverflow.com/questions/13322485/how-to-get-the-primary-
   ip-address-of-the-local-machine-on-linux-and-os-x#comment36288680_18905621
   (on which the following shell command was based) for more details.*/
-  std::system("hostname -I > local_ip.txt");
+  std::system("hostname -I > ip_data/local_ip.txt");
+
+  // At this point, I'll run a command that copies these latest IP
+  // addresses to an online storage provider--thus allowing me to
+  // remotely update any processes that depend on those addresses.
+  // (Yes, I'm too cheap to subscribe to a DDNS provider!)
+
+  std::system("./address_upload.sh"); // For this command
+  // to work, the file must be made executable.
+
   std::string local_ip_address = "";
-  std::ifstream local_ip_ifs = std::ifstream("local_ip.txt");
+  std::ifstream local_ip_ifs = std::ifstream("ip_data/local_ip.txt");
   local_ip_ifs >> local_ip_address; // Note: This will only retrieve
   // the first IP address listed (the command returns 3 in my case), but
   // conveniently enough, this is the local IP address I'm interested in--
   // so this code works fine for my use case.
+
+  // At this point, I could check whether either the local or public
+  // IP addresses differ from the last row (if any) within the .csv
+  // file. I could then choose to create a new row only if a 
+  // difference exists (which would make it easier to see when
+  // either value has changed). However, for now, I'll plan to create
+  // a new row each run, as when called via a crontab, this script 
+  // can serve as an indicator that my server is functioning normally.
+
   std::string current_time = get_current_time();
-  int index = 1; // Update to equal the final row index + 1 (or, if the previous
-                 // row is the header, 1)
-
-  std::vector<std::string> output_data = std::vector{
-      std::to_string(index), current_time, public_ip_address, local_ip_address};
-
-  std::ofstream ofs("ip_log.csv", std::ios::app);
-  // Creating a CSV-formatted output string:
-  // Note: This simple approach works because we shouldn't have any commas
-  // within our input data. If that ever changes, we'll need to update this code
-  // to accommodate such commas.
-  std::string output_string = "";
-  for (int i = 0; i < output_data.size(); i++) {
-    output_string += output_data[i];
-    /* If we're not at the final entry within the list,
-    we should add a comma; otherwise, we should add a newline character. */
-    if (i == output_data.size() - 1) {
-      output_string += "\n";
-    } else {
-      output_string += ",";
-    }
+  // Converting the last index value to an integer; incrementing it
+  // by 1; and then converting it back to a string:
+  std::string index = "";
+  if (csv_row_count > 0)
+  {
+  index = std::to_string(stoi(final_row["Index"]) +1);}
+  else { // In this case, we'll simply start the index column at 1.
+    index = "1";
   }
 
-  ofs << output_string;
-  ofs.close();
+  // Creating a new row for our CSV file:
+
+  std::map<std::string, std::string> data_row {{"Index", index},
+{"Timestamp", current_time}, {"Public_IP_Address", public_ip_address}, {
+"Local_IP_Address", local_ip_address}};
+
+csv_data.push_back(data_row);
+
+// Testing out an export:
+
+vmss_to_csv("ip_log.csv", csv_data, col_names);
+
 }
